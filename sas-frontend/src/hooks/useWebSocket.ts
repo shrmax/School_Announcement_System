@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 
-export function useWebSocket(url) {
-  const [lastMessage, setLastMessage] = useState(null);
-  const [readyState, setReadyState] = useState(WebSocket.CLOSED);
+export function useWebSocket(url: string) {
+  const [lastMessage, setLastMessage] = useState<any>(null);
+  const [readyState, setReadyState] = useState<number>(WebSocket.CLOSED);
 
   useEffect(() => {
     // In a real app, this would connect to url

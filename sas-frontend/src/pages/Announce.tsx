@@ -13,9 +13,19 @@ import {
 import TargetSelector from '../components/TargetSelector';
 import { clsx } from 'clsx';
 
+type AnnouncementType = 'live' | 'prerecorded' | 'emergency' | 'bell';
+
+interface AnnouncementCategory {
+  id: AnnouncementType;
+  icon: React.ElementType;
+  label: string;
+  color: string;
+  desc: string;
+}
+
 const Announce = () => {
   const [step, setStep] = useState(1);
-  const [type, setType] = useState(null);
+  const [type, setType] = useState<AnnouncementType | null>(null);
 
   const steps = [
     { id: 1, label: 'Type' },
@@ -24,7 +34,7 @@ const Announce = () => {
     { id: 4, label: 'Finalize' }
   ];
 
-  const types = [
+  const types: AnnouncementCategory[] = [
     { id: 'live', icon: Mic, label: 'Live Broadcast', color: 'bg-blue-500', desc: 'Stream audio directly from your microphone' },
     { id: 'prerecorded', icon: FileAudio, label: 'Prerecorded', color: 'bg-brand-600', desc: 'Select an audio file from the library' },
     { id: 'emergency', icon: AlertTriangle, label: 'Emergency', color: 'bg-emergency', desc: 'Highest priority, interrupts all active streams' },
@@ -67,7 +77,7 @@ const Announce = () => {
                 {types.map(t => (
                   <div 
                     key={t.id}
-                    onClick={() => { setType(t.id); setStep(2); }}
+                    onClick={() => { setType(t.id as AnnouncementType); setStep(2); }}
                     className={clsx(
                       "p-6 rounded-xl border-2 transition-all cursor-pointer group hover:shadow-lg",
                       type === t.id ? "border-brand-600 bg-brand-50/50" : "border-slate-100 hover:border-brand-200"

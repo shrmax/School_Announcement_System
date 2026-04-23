@@ -13,10 +13,21 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
-const Schedules = () => {
-  const [activeTab, setActiveTab] = useState('bells');
+type TabType = 'bells' | 'holidays';
 
-  const bellSchedules = [
+interface BellSchedule {
+  id: number;
+  name: string;
+  time: string;
+  days: string;
+  audio: string;
+  active: boolean;
+}
+
+const Schedules = () => {
+  const [activeTab, setActiveTab] = useState<TabType>('bells');
+
+  const bellSchedules: BellSchedule[] = [
     { id: 1, name: 'Morning Entrance', time: '08:00 AM', days: 'Mon-Fri', audio: 'chime.ogg', active: true },
     { id: 2, name: 'Recess Start', time: '10:30 AM', days: 'Mon-Fri', audio: 'bell_loud.ogg', active: true },
     { id: 3, name: 'Lunch Period', time: '12:00 PM', days: 'Mon-Fri', audio: 'lunch_tone.ogg', active: false },

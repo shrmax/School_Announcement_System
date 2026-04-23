@@ -8,11 +8,22 @@ import {
   TrendingUp,
   Users,
   ShieldAlert,
-  Activity
+  Activity,
+  Megaphone,
+  HardDrive as HardDriveIcon
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import React from 'react';
 
-const StatCard = ({ label, value, icon: Icon, trend, color }) => (
+interface StatCardProps {
+  label: string;
+  value: string | number;
+  icon: React.ElementType;
+  trend?: string;
+  color: string;
+}
+
+const StatCard = ({ label, value, icon: Icon, trend, color }: StatCardProps) => (
   <div className="card hover:shadow-lg transition-shadow border-t-4" style={{ borderColor: color }}>
     <div className="flex justify-between items-start mb-4">
       <div className="p-2 rounded-lg bg-slate-50 text-slate-600">
@@ -190,7 +201,6 @@ const Dashboard = () => {
   );
 };
 
-const MegaphoneIcon = (props) => <Megaphone size={props.size} />;
-import { Megaphone, HardDrive as HardDriveIcon } from 'lucide-react';
+const MegaphoneIcon = ({ size }: { size?: number }) => <Megaphone size={size} />;
 
 export default Dashboard;

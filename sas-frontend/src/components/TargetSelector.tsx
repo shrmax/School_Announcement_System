@@ -10,15 +10,23 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
-const TargetSelector = ({ data, onSelectionChange }) => {
-  const [expanded, setExpanded] = useState({});
-  const [selected, setSelected] = useState({});
+type TargetType = 'school' | 'building' | 'floor' | 'classroom';
+type SelectionStatus = 'all' | 'some' | 'none';
 
-  const toggleExpand = (id) => {
+interface TargetSelectorProps {
+  data?: any;
+  onSelectionChange?: (selectedIds: string[]) => void;
+}
+
+const TargetSelector = ({ data, onSelectionChange }: TargetSelectorProps) => {
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [selected, setSelected] = useState<Record<string, SelectionStatus>>({});
+
+  const toggleExpand = (id: string) => {
     setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const handleSelect = (id, type) => {
+  const handleSelect = (id: string, type: TargetType) => {
     // Hierarchical selection logic would go here
     // For now, simple toggle
     setSelected(prev => ({
@@ -61,7 +69,7 @@ const TargetSelector = ({ data, onSelectionChange }) => {
     }
   ];
 
-  const SelectionBox = ({ status, onClick }) => (
+  const SelectionBox = ({ status, onClick }: { status: SelectionStatus; onClick: () => void }) => (
     <div 
       onClick={(e) => { e.stopPropagation(); onClick(); }}
       className={clsx(

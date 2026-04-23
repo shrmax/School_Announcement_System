@@ -14,14 +14,34 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
-const Hierarchy = () => {
-  const [expanded, setExpanded] = useState({ 'b1': true });
+interface Classroom {
+  id: string;
+  name: string;
+  endpoint: string;
+  active: boolean;
+}
 
-  const toggleExpand = (id) => {
+interface Floor {
+  id: string;
+  name: string;
+  multicast: string;
+  classrooms: Classroom[];
+}
+
+interface Building {
+  id: string;
+  name: string;
+  floors: Floor[];
+}
+
+const Hierarchy = () => {
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({ 'b1': true });
+
+  const toggleExpand = (id: string) => {
     setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const hierarchy = [
+  const hierarchy: Building[] = [
     {
       id: 'b1',
       name: 'Main Building',

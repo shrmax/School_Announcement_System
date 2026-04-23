@@ -16,7 +16,7 @@ const LiveBroadcast = () => {
   const [isLive, setIsLive] = useState(false);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0);
-  const timerRef = useRef(null);
+  const timerRef = useRef<any>(null);
 
   useEffect(() => {
     if (isLive) {
@@ -26,14 +26,16 @@ const LiveBroadcast = () => {
         setVolume(Math.floor(Math.random() * 60) + 20);
       }, 1000);
     } else {
-      clearInterval(timerRef.current);
+      if (timerRef.current) clearInterval(timerRef.current);
       setDuration(0);
       setVolume(0);
     }
-    return () => clearInterval(timerRef.current);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
   }, [isLive]);
 
-  const formatDuration = (s) => {
+  const formatDuration = (s: number) => {
     const mins = Math.floor(s / 60);
     const secs = s % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;

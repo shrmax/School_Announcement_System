@@ -14,10 +14,19 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
+interface AudioFile {
+  id: number;
+  name: string;
+  duration: string;
+  size: string;
+  status: 'ready' | 'transcoding' | 'failed';
+  date: string;
+}
+
 const Library = () => {
   const [isUploading, setIsUploading] = useState(false);
   
-  const files = [
+  const files: AudioFile[] = [
     { id: 1, name: 'Morning Bell', duration: '0:04', size: '12KB', status: 'ready', date: '2024-04-20' },
     { id: 2, name: 'Emergency Drill Instruction', duration: '1:45', size: '420KB', status: 'ready', date: '2024-04-18' },
     { id: 3, name: 'Lunch Transition', duration: '0:12', size: '24KB', status: 'transcoding', date: '2024-04-23' },
@@ -25,7 +34,7 @@ const Library = () => {
     { id: 5, name: 'Test Audio Large', duration: '--', size: '1.2MB', status: 'failed', date: '2024-04-22' }
   ];
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = (status: AudioFile['status']) => {
     switch(status) {
       case 'ready': return <CheckCircle2 size={16} className="text-success" />;
       case 'transcoding': return <RefreshCw size={16} className="text-brand-500 animate-spin" />;

@@ -12,8 +12,9 @@ import {
   AlertTriangle,
   ChevronRight
 } from 'lucide-react';
-import { clsx } from 'clsx';
+import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import React from 'react';
 
 // Page Imports
 import Dashboard from './pages/Dashboard';
@@ -23,7 +24,7 @@ import Library from './pages/Library';
 import Schedules from './pages/Schedules';
 import Hierarchy from './pages/Hierarchy';
 
-function cn(...inputs) {
+function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
@@ -32,7 +33,13 @@ const Endpoints = () => <div className="p-8"><h1 className="text-3xl font-bold">
 const JobMonitor = () => <div className="p-8"><h1 className="text-3xl font-bold">Job Monitor</h1></div>;
 const Logs = () => <div className="p-8"><h1 className="text-3xl font-bold">Logs</h1></div>;
 
-const NavItem = ({ to, icon: Icon, label }) => {
+interface NavItemProps {
+  to: string;
+  icon: React.ElementType;
+  label: string;
+}
+
+const NavItem = ({ to, icon: Icon, label }: NavItemProps) => {
   const location = useLocation();
   const isActive = location.pathname === to;
   
@@ -53,7 +60,7 @@ const NavItem = ({ to, icon: Icon, label }) => {
   );
 };
 
-const Layout = ({ children }) => {
+const Layout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div className="flex min-h-screen bg-slate-50">
       {/* Sidebar */}
