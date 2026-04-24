@@ -38,8 +38,8 @@ const Schedules = () => {
     <div className="p-8 max-w-7xl mx-auto space-y-8">
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Bell Schedules</h1>
-          <p className="text-slate-500 mt-1">Configure automated tones and holiday exceptions.</p>
+          <h1 className="text-3xl font-bold text-slate-900">Automated Schedules</h1>
+          <p className="text-slate-500 mt-1">Configure bells, drills, and periodic announcements.</p>
         </div>
         <button className="btn-primary flex items-center gap-2">
           <Plus size={18} />
@@ -55,7 +55,7 @@ const Schedules = () => {
             activeTab === 'bells' ? "bg-white text-brand-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
           )}
         >
-          Bell Schedules
+          Active Schedules
         </button>
         <button 
           onClick={() => setActiveTab('holidays')}
@@ -113,7 +113,7 @@ const Schedules = () => {
              <div className="w-12 h-12 rounded-full border-2 border-slate-200 flex items-center justify-center mb-3 group-hover:border-brand-300">
                <Plus size={24} />
              </div>
-             <span className="font-bold text-sm">Add New Bell Schedule</span>
+             <span className="font-bold text-sm">Add New Schedule</span>
           </button>
         </div>
       ) : (

@@ -93,10 +93,9 @@ sas-backend/
 │   │
 │   ├── routes/
 │   │   ├── announcements.js       ← POST /announcements, GET /announcements
-│   │   ├── hierarchy.js           ← CRUD for buildings, floors, classrooms
-│   │   ├── endpoints.js           ← Register / update classroom RTP endpoints
+│   │   ├── hierarchy.js           ← CRUD for buildings, floors, classrooms (includes IP/port config)
 │   │   ├── library.js             ← Upload, list, delete audio files
-│   │   ├── schedules.js           ← Bell schedules, exception dates
+│   │   ├── schedules.js           ← Automated broadcast schedules
 │   │   ├── logs.js                ← Announcement history, CSV export
 │   │   └── stream.js              ← WebSocket route for live broadcast
 │   │
@@ -143,38 +142,38 @@ sas-backend/
 ### 3.2 Frontend
 sas-frontend/
 ├── src/
-│   ├── main.jsx
-│   ├── App.jsx                    ← Router setup
+│   ├── main.tsx
+│   ├── App.tsx                    ← Router setup
 │   │
 │   ├── pages/
-│   │   ├── Dashboard.jsx          ← Active stream status, quick actions
-│   │   ├── Announce.jsx           ← Announcement creation flow
-│   │   ├── LiveBroadcast.jsx      ← Mic capture, go-live panel
-│   │   ├── Library.jsx            ← Upload and manage audio files
-│   │   ├── Schedules.jsx          ← Bell schedules, exception dates
-│   │   ├── Hierarchy.jsx          ← Manage buildings, floors, classrooms
-│   │   ├── Endpoints.jsx          ← Register and manage RTP endpoints
-│   │   ├── JobMonitor.jsx         ← pg-boss job status view
-│   │   └── Logs.jsx               ← Announcement history, CSV export
+│   │   ├── Dashboard.tsx          ← Active stream status, quick actions
+│   │   ├── Announce.tsx           ← Announcement creation flow
+│   │   ├── LiveBroadcast.tsx      ← Mic capture, go-live panel
+│   │   ├── Library.tsx            ← Upload and manage audio files
+│   │   ├── Schedules.tsx          ← Bell schedules, exception dates
+│   │   ├── Hierarchy.tsx          ← Manage buildings, floors, classrooms
+│   │   ├── Endpoints.tsx          ← Register and manage RTP endpoints (Placeholder)
+│   │   ├── JobMonitor.tsx         ← pg-boss job status view (Placeholder)
+│   │   └── Logs.tsx               ← Announcement history, CSV export (Placeholder)
 │   │
 │   ├── components/
-│   │   ├── TargetSelector.jsx     ← Hierarchical checkbox tree
-│   │   ├── PriorityPicker.jsx     ← Priority level selector
-│   │   ├── AudioUploader.jsx      ← Drag and drop upload with preview
-│   │   ├── ActiveStreamBanner.jsx ← Shows currently playing announcement
-│   │   ├── EmergencyButton.jsx    ← Always-visible emergency trigger
-│   │   └── ScheduleForm.jsx       ← Cron / datetime schedule builder
+│   │   ├── TargetSelector.tsx     ← Hierarchical checkbox tree
+│   │   ├── PriorityPicker.tsx     ← Priority level selector (Placeholder)
+│   │   ├── AudioUploader.tsx      ← Drag and drop upload with preview (Placeholder)
+│   │   ├── ActiveStreamBanner.tsx ← Shows currently playing announcement (Placeholder)
+│   │   ├── EmergencyButton.tsx    ← Always-visible emergency trigger (Placeholder)
+│   │   └── ScheduleForm.tsx       ← Cron / datetime schedule builder (Placeholder)
 │   │
 │   ├── hooks/
-│   │   ├── useWebSocket.js        ← WS connection for real-time status
-│   │   ├── useMicrophone.js       ← getUserMedia + audio capture
-│   │   └── useActiveStream.js     ← Polls or subscribes to active stream state
+│   │   ├── useWebSocket.ts        ← WS connection for real-time status
+│   │   ├── useMicrophone.ts       ← getUserMedia + audio capture (Placeholder)
+│   │   └── useActiveStream.ts     ← Polls or subscribes to active stream state (Placeholder)
 │   │
 │   ├── api/
-│   │   └── client.js              ← Axios or fetch wrapper, base URL from env
+│   │   └── client.ts              ← Axios or fetch wrapper, base URL from env (Placeholder)
 │   │
 │   └── utils/
-│       └── cron.helper.js         ← Human-readable cron description helper
+│       └── cron.helper.ts         ← Human-readable cron description helper (Placeholder)
 │
 ├── .env
 ├── index.html
@@ -208,9 +207,10 @@ CREATE TABLE classrooms (
   id           SERIAL PRIMARY KEY,
   floor_id     INTEGER REFERENCES floors(id) ON DELETE CASCADE,
   name         VARCHAR(100) NOT NULL,
-  ip_address   VARCHAR(45),   -- e.g. 192.168.1.45:5004
+  ip_address   VARCHAR(45),   -- e.g. 192.168.1.45
+  port         INTEGER DEFAULT 5004,
   enabled      BOOLEAN DEFAULT TRUE,
-  last_seen    TIMESTAMP,
+  last_seen    TIMESTAMP,     -- Hardware heartbeat
   created_at   TIMESTAMP DEFAULT NOW()
 );
 
@@ -226,8 +226,9 @@ CREATE TABLE audio_files (
 
 CREATE TABLE announcements (
   id            SERIAL PRIMARY KEY,
+  title         VARCHAR(200),        -- e.g. "Morning Assembly Notice"
   type          VARCHAR(20) NOT NULL CHECK (
-                  type IN ('prerecorded', 'emergency', 'bell')
+                  type IN ('live', 'prerecorded', 'emergency', 'bell')
                 ),
   priority      INTEGER NOT NULL CHECK (priority BETWEEN 1 AND 5),
   status        VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (
@@ -254,7 +255,7 @@ CREATE TABLE announcement_targets (
 CREATE TABLE schedules (
   id              SERIAL PRIMARY KEY,
   announcement_id INTEGER REFERENCES announcements(id) ON DELETE CASCADE,
-  cron_expr       VARCHAR(100),      -- for recurring (bells)
+  cron_expr       VARCHAR(100),      -- for recurring broadcasts (e.g. bells, drills)
   run_at          TIMESTAMP,         -- for one-off scheduled announcements
   created_at      TIMESTAMP DEFAULT NOW()
 );
@@ -279,7 +280,6 @@ CREATE TABLE announcement_logs (
 ```sql
 CREATE INDEX idx_floors_building    ON floors(building_id);
 CREATE INDEX idx_classrooms_floor   ON classrooms(floor_id);
-CREATE INDEX idx_endpoints_classroom ON endpoints(classroom_id);
 CREATE INDEX idx_targets_announcement ON announcement_targets(announcement_id);
 CREATE INDEX idx_logs_announcement  ON announcement_logs(announcement_id);
 CREATE INDEX idx_logs_logged_at     ON announcement_logs(logged_at DESC);
@@ -315,12 +315,7 @@ GET    /api/v1/floors/:id/classrooms
 POST   /api/v1/classrooms
 PUT    /api/v1/classrooms/:id
 DELETE /api/v1/classrooms/:id
-Endpoints
-GET    /api/v1/endpoints
-POST   /api/v1/endpoints
-PUT    /api/v1/endpoints/:id
-DELETE /api/v1/endpoints/:id
-PATCH  /api/v1/endpoints/:id/toggle
+PATCH  /api/v1/classrooms/:id/toggle  ← enable/disable endpoint
 Audio Library
 GET    /api/v1/library
 POST   /api/v1/library/upload       ← multipart, triggers transcode job
@@ -579,9 +574,9 @@ const boss = new PgBoss({
 await boss.start()
 
 // Register workers
-boss.work('announcement.send',      sendWorker)
-boss.work('announcement.transcode', transcodeWorker)
-boss.work('bell.fire',              bellWorker)
+boss.work('announcement.send',           sendWorker)
+boss.work('announcement.transcode',      transcodeWorker)
+boss.work('announcement.fire_recurring', recurringWorker)
 
 // Register recurring bell schedules (called at startup
 // and whenever admin updates bell schedules)
@@ -605,13 +600,13 @@ Call priority engine → queue or start immediately
 Log result
 
 
-**bell.fire worker:**
+**announcement.fire_recurring worker:**
 
-Load bell schedule from DB
+Load recurring schedule from DB
 Check if schedule is still enabled
 Check exception_dates — if holiday, skip and log
-Build announcement object (type: bell, priority: 1)
-Call priority engine → queue behind everything else
+Build announcement object (type: bell or emergency, priority: 1-5)
+Call priority engine → queue or start
 Log result
 
 
@@ -675,8 +670,8 @@ Log all discarded announcements as interrupted
 ├── Quick actions: Go Live, New Announcement
 └── Recent announcements list
 /announce
-├── Step 1: Select type (live / prerecorded / emergency / bell)
-├── Step 2: Select audio (mic or library picker)
+├── Step 1: Select type (prerecorded / emergency / bell)
+├── Step 2: Select audio (library picker)
 ├── Step 3: Select targets (TargetSelector tree component)
 ├── Step 4: Set priority and schedule
 └── Step 5: Confirm and send
@@ -690,8 +685,8 @@ Log all discarded announcements as interrupted
 ├── Transcode status indicator
 └── File list (name, duration, preview button, delete)
 /schedules
-├── Bell schedule list with enable/disable toggle
-├── Add bell schedule form (cron builder + target + audio)
+├── Broadcast schedule list (Bells, Drills, Prerecorded) with enable/disable toggle
+├── Add schedule form (cron builder + type selection + target + audio)
 └── Exception dates calendar
 /hierarchy
 ├── Buildings list

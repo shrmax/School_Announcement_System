@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import { 
-  Megaphone, 
-  Mic, 
   FileAudio, 
   AlertTriangle, 
   Bell,
@@ -13,7 +11,7 @@ import {
 import TargetSelector from '../components/TargetSelector';
 import { clsx } from 'clsx';
 
-type AnnouncementType = 'live' | 'prerecorded' | 'emergency' | 'bell';
+type AnnouncementType = 'prerecorded' | 'emergency' | 'bell';
 
 interface AnnouncementCategory {
   id: AnnouncementType;
@@ -35,7 +33,6 @@ const Announce = () => {
   ];
 
   const types: AnnouncementCategory[] = [
-    { id: 'live', icon: Mic, label: 'Live Broadcast', color: 'bg-blue-500', desc: 'Stream audio directly from your microphone' },
     { id: 'prerecorded', icon: FileAudio, label: 'Prerecorded', color: 'bg-brand-600', desc: 'Select an audio file from the library' },
     { id: 'emergency', icon: AlertTriangle, label: 'Emergency', color: 'bg-emergency', desc: 'Highest priority, interrupts all active streams' },
     { id: 'bell', icon: Bell, label: 'Bell / Tone', color: 'bg-warning', desc: 'Schedule a recurring school bell' }
@@ -97,30 +94,19 @@ const Announce = () => {
           {step === 2 && (
             <div className="space-y-6">
               <h2 className="text-xl font-bold text-slate-800 mb-6">Select Audio Source</h2>
-              {type === 'live' ? (
-                <div className="p-12 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center text-center">
-                  <div className="w-20 h-20 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-6">
-                    <Mic size={40} />
-                  </div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-2">Microphone Access</h3>
-                  <p className="text-slate-500 max-w-xs">We'll use your system microphone for the live broadcast.</p>
-                  <button className="btn-primary mt-8">Test Microphone</button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                   <div className="p-4 border border-brand-200 bg-brand-50 rounded-xl flex items-center justify-between">
-                     <div className="flex items-center gap-3">
-                       <FileAudio className="text-brand-600" />
-                       <div>
-                         <p className="font-bold text-slate-900">morning_bell.ogg</p>
-                         <p className="text-xs text-slate-500">0:04 • 32kbps</p>
-                       </div>
+              <div className="space-y-4">
+                 <div className="p-4 border border-brand-200 bg-brand-50 rounded-xl flex items-center justify-between">
+                   <div className="flex items-center gap-3">
+                     <FileAudio className="text-brand-600" />
+                     <div>
+                       <p className="font-bold text-slate-900">morning_bell.ogg</p>
+                       <p className="text-xs text-slate-500">0:04 • 32kbps</p>
                      </div>
-                     <button className="text-sm font-bold text-brand-700">Change</button>
                    </div>
-                   <button className="btn-secondary w-full border-dashed py-8">+ Upload New or Pick from Library</button>
-                </div>
-              )}
+                   <button className="text-sm font-bold text-brand-700">Change</button>
+                 </div>
+                 <button className="btn-secondary w-full border-dashed py-8">+ Upload New or Pick from Library</button>
+              </div>
             </div>
           )}
 

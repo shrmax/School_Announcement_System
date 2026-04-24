@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: sas-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: sas_admin
+      POSTGRES_PASSWORD: sas_password
+      POSTGRES_DB: school_announcement_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - sas_postgres_data:/var/lib/postgresql/data
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - "8080:8080"
+
+volumes:
+  sas_postgres_data:
