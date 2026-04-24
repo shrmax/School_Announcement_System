@@ -11,7 +11,9 @@ import { loggerOptions } from './utils/logger.js';
 import hierarchyRoutes from './routes/hierarchy.js';
 import libraryRoutes from './routes/library.js';
 import announcementRoutes from './routes/announcements.js';
+import liveRoutes from './routes/live.js';
 import { initQueue } from './services/queue.js';
+import * as statsController from './controllers/stats.js';
 
 dotenv.config();
 
@@ -23,7 +25,11 @@ const server = Fastify({
 });
 
 // Register Plugins
-await server.register(cors);
+await server.register(cors, {
+  origin: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+});
 await server.register(websocket);
 await server.register(multipart, {
   limits: {
@@ -35,6 +41,7 @@ await server.register(multipart, {
 await server.register(hierarchyRoutes, { prefix: '/api/v1' });
 await server.register(libraryRoutes, { prefix: '/api/v1' });
 await server.register(announcementRoutes, { prefix: '/api/v1' });
+await server.register(liveRoutes, { prefix: '/api/v1' });
 
 // Serve Static Frontend (when built)
 const staticPath = path.join(__dirname, '../public');
@@ -47,6 +54,35 @@ await server.register(fastifyStatic, {
 server.get('/health', async (_request, _reply) => {
   return { status: 'ok', version: '1.0.0' };
 });
+
+// Global Error Handler
+server.setErrorHandler((error, _request, reply) => {
+  server.log.error(error);
+  
+  let statusCode = 500;
+  let message = 'Internal Server Error';
+  let details = undefined;
+
+  if (error instanceof Error) {
+    message = error.message;
+    if ('statusCode' in error) {
+      statusCode = (error as { statusCode: number }).statusCode;
+    }
+    
+    if (error.name === 'ZodError') {
+      statusCode = 400;
+      message = 'Validation Error';
+      details = (error as unknown as { errors: unknown }).errors;
+    }
+  }
+
+  reply.status(statusCode).send({
+    error: message,
+    details,
+  });
+});
+
+server.get('/api/v1/stats', statsController.getSystemStats);
 
 const start = async (): Promise<void> => {
   try {

@@ -36,6 +36,7 @@ export const audioFiles = pgTable('audio_files', {
   filename: varchar('filename', { length: 200 }).notNull(),
   durationSec: integer('duration_sec'),
   sizeBytes: integer('size_bytes'),
+  status: varchar('status', { length: 20 }).default('pending').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
 });
 

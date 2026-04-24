@@ -9,22 +9,195 @@ import {
   AlertCircle,
   Volume2
 } from 'lucide-react';
-import TargetSelector from '../components/TargetSelector';
+import TargetSelector, { SelectedTarget } from '../components/TargetSelector';
 import { clsx } from 'clsx';
+import { hierarchyService, Building, Floor, Classroom } from '../api/services/hierarchy';
 
 const LiveBroadcast = () => {
   const [isLive, setIsLive] = useState(false);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0);
   const timerRef = useRef<any>(null);
+  const socketRef = useRef<WebSocket | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+
+  // Data State
+  const [buildings, setBuildings] = useState<Building[]>([]);
+  const [floors, setFloors] = useState<Record<number, Floor[]>>({});
+  const [classrooms, setClassrooms] = useState<Record<number, Classroom[]>>({});
+  const [selectedTargets, setSelectedTargets] = useState<SelectedTarget[]>([]);
+
+  useEffect(() => {
+    loadBuildings();
+  }, []);
+
+  const loadBuildings = async () => {
+    try {
+      const res = await hierarchyService.getBuildings();
+      setBuildings(res.data);
+    } catch (err) {
+      console.error('Failed to load buildings', err);
+    }
+  };
+
+  const handleExpandBuilding = async (id: number) => {
+    if (floors[id]) return;
+    try {
+      const res = await hierarchyService.getFloors(id);
+      setFloors(prev => ({ ...prev, [id]: res.data }));
+    } catch (err) {
+      console.error('Failed to load floors', err);
+    }
+  };
+
+  const handleExpandFloor = async (id: number) => {
+    if (classrooms[id]) return;
+    try {
+      const res = await hierarchyService.getClassrooms(id);
+      setClassrooms(prev => ({ ...prev, [id]: res.data }));
+    } catch (err) {
+      console.error('Failed to load classrooms', err);
+    }
+  };
+
+  const startStreaming = async () => {
+    if (selectedTargets.length === 0) {
+      alert('Please select at least one target before going live.');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // Setup Audio Analysis for Volume Meter
+      const audioContext = new AudioContext();
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      audioContextRef.current = audioContext;
+      analyserRef.current = analyser;
+
+      // Setup WebSocket
+      const wsUrl = `ws://${window.location.hostname}:3000/api/v1/live`;
+      const socket = new WebSocket(wsUrl);
+      socketRef.current = socket;
+
+      socket.onopen = () => {
+        // Resolve all target addresses
+        const targetAddresses: string[] = [];
+
+        selectedTargets.forEach(target => {
+          if (target.type === 'building') {
+            const buildingFloors = floors[target.id] || [];
+            buildingFloors.forEach(f => {
+              if (f.multicastAddress) {
+                targetAddresses.push(f.multicastAddress);
+              } else {
+                // Fallback to classrooms in this floor
+                const floorClassrooms = classrooms[f.id] || [];
+                floorClassrooms.forEach(c => {
+                  if (c.ipAddress && c.enabled) targetAddresses.push(c.ipAddress);
+                });
+              }
+            });
+          } else if (target.type === 'floor') {
+            // Find the floor object
+            let floorObj: Floor | undefined;
+            Object.values(floors).flat().forEach(f => {
+              if (f.id === target.id) floorObj = f;
+            });
+
+            if (floorObj?.multicastAddress) {
+              targetAddresses.push(floorObj.multicastAddress);
+            } else {
+              // Fallback to classrooms
+              const floorClassrooms = classrooms[target.id] || [];
+              floorClassrooms.forEach(c => {
+                if (c.ipAddress && c.enabled) targetAddresses.push(c.ipAddress);
+              });
+            }
+          } else if (target.type === 'classroom') {
+            Object.values(classrooms).flat().forEach(c => {
+              if (c.id === target.id && c.ipAddress && c.enabled) {
+                targetAddresses.push(c.ipAddress);
+              }
+            });
+          }
+        });
+
+        // Remove duplicates
+        const uniqueAddresses = Array.from(new Set(targetAddresses));
+
+        if (uniqueAddresses.length === 0) {
+          socket.close();
+          alert('No valid IP addresses found for selected targets.');
+          return;
+        }
+
+        socket.send(JSON.stringify({ 
+          type: 'start', 
+          addresses: uniqueAddresses, 
+          port: 5004 
+        }));
+      };
+
+      // Setup MediaRecorder
+      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0 && socket.readyState === WebSocket.OPEN) {
+          socket.send(event.data);
+        }
+      };
+
+      recorder.start(100); // 100ms chunks
+      setIsLive(true);
+    } catch (err) {
+      console.error('Failed to start streaming', err);
+      alert('Could not access microphone.');
+    }
+  };
+
+  const stopStreaming = () => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+    }
+    if (socketRef.current) {
+      socketRef.current.send(JSON.stringify({ type: 'stop' }));
+      socketRef.current.close();
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+    }
+    setIsLive(false);
+  };
+
+  const toggleLive = () => {
+    if (isLive) {
+      stopStreaming();
+    } else {
+      startStreaming();
+    }
+  };
 
   useEffect(() => {
     if (isLive) {
       timerRef.current = setInterval(() => {
         setDuration(d => d + 1);
-        // Simulate volume meter
-        setVolume(Math.floor(Math.random() * 60) + 20);
-      }, 1000);
+        
+        // Use real volume from analyser
+        if (analyserRef.current) {
+          const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+          analyserRef.current.getByteFrequencyData(dataArray);
+          const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+          setVolume(Math.min(100, Math.floor(average * 1.5)));
+        }
+      }, 100); // Faster update for volume meter
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
       setDuration(0);
@@ -99,7 +272,7 @@ const LiveBroadcast = () => {
              </div>
 
              <button 
-               onClick={() => setIsLive(!isLive)}
+               onClick={toggleLive}
                className={clsx(
                  "btn px-12 py-4 rounded-2xl text-xl font-black uppercase tracking-widest flex items-center gap-3 transition-all",
                  isLive 
@@ -152,7 +325,14 @@ const LiveBroadcast = () => {
           )}
         </div>
         <div className={clsx("transition-opacity", isLive && "opacity-50 pointer-events-none")}>
-          <TargetSelector />
+          <TargetSelector 
+            buildings={buildings}
+            floors={floors}
+            classrooms={classrooms}
+            onExpandBuilding={handleExpandBuilding}
+            onExpandFloor={handleExpandFloor}
+            onSelectionChange={setSelectedTargets}
+          />
         </div>
         
         <div className="card bg-blue-50 border-blue-100">

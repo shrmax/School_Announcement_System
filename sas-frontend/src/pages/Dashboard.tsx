@@ -10,10 +10,14 @@ import {
   ShieldAlert,
   Activity,
   Megaphone,
-  HardDrive as HardDriveIcon
+  HardDrive as HardDriveIcon,
+  Loader2
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { clsx } from 'clsx';
+import { statsService, SystemStats } from '../api/services/stats';
+import { announcementService } from '../api/services/announcements';
 
 interface StatCardProps {
   label: string;
@@ -42,6 +46,51 @@ const StatCard = ({ label, value, icon: Icon, trend, color }: StatCardProps) => 
 );
 
 const Dashboard = () => {
+  const [stats, setStats] = useState<SystemStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isEmergencyTriggering, setIsEmergencyTriggering] = useState(false);
+
+  useEffect(() => {
+    loadStats();
+    const interval = setInterval(loadStats, 10000); // Refresh every 10s
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadStats = async () => {
+    try {
+      const response = await statsService.getSystemStats();
+      setStats(response.data);
+    } catch (err) {
+      console.error('Failed to load stats', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleQuickEmergency = async () => {
+    if (!window.confirm('CRITICAL: Are you sure you want to trigger a school-wide emergency broadcast?')) return;
+    
+    setIsEmergencyTriggering(true);
+    try {
+      // Find a suitable emergency audio file or just use the first one for now
+      // In a real system, there would be a dedicated emergency_audio_id
+      await announcementService.create({
+        title: 'EMERGENCY BROADCAST',
+        type: 'emergency',
+        priority: 5,
+        audioFileId: 1, // Defaulting to 1 for prototype
+        targets: [{ type: 'school' }]
+      });
+      alert('Emergency broadcast initiated!');
+      loadStats();
+    } catch (err) {
+      console.error('Emergency trigger failed', err);
+      alert('Emergency trigger failed. Please check system logs.');
+    } finally {
+      setIsEmergencyTriggering(false);
+    }
+  };
+
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
       {/* Welcome Section */}
@@ -66,26 +115,26 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
           label="Total Endpoints" 
-          value="124" 
+          value={stats?.classrooms.total || 0} 
           icon={Users} 
           color="#243b53" 
         />
         <StatCard 
-          label="Announcements (Today)" 
-          value="18" 
+          label="Announcements (Recent)" 
+          value={stats?.recentAnnouncements.length || 0} 
           icon={MegaphoneIcon} 
-          trend="+12%" 
+          trend={stats?.recentAnnouncements.length ? "+100%" : undefined} 
           color="#38a169" 
         />
         <StatCard 
-          label="Pending Jobs" 
-          value="3" 
-          icon={Clock} 
+          label="Audio Clips" 
+          value={stats?.audioFiles || 0} 
+          icon={HardDriveIcon} 
           color="#d69e2e" 
         />
         <StatCard 
-          label="System Uptime" 
-          value="99.9%" 
+          label="Online Rate" 
+          value={stats ? `${Math.round((stats.classrooms.online / stats.classrooms.total) * 100)}%` : '--'} 
           icon={CheckCircle2} 
           color="#3182ce" 
         />
@@ -95,63 +144,38 @@ const Dashboard = () => {
         {/* Active Stream Section */}
         <div className="lg:col-span-2 space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-slate-900">Current Activity</h2>
-            <button className="text-brand-600 text-sm font-bold hover:underline">View All</button>
+            <h2 className="text-xl font-bold text-slate-900">Recent Activity</h2>
+            <Link to="/announce" className="text-brand-600 text-sm font-bold hover:underline">Create New</Link>
           </div>
           
-          <div className="card bg-brand-900 text-white border-none overflow-hidden relative">
-            <div className="absolute right-0 top-0 w-32 h-32 bg-brand-800 rounded-full -mr-16 -mt-16 opacity-50 blur-3xl"></div>
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="px-2 py-1 bg-brand-700 rounded text-[10px] font-bold uppercase tracking-wider">Active Stream</div>
-                <div className="flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-success opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
-                </div>
-              </div>
-              
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div>
-                  <h3 className="text-2xl font-bold mb-1">Morning Assembly Notice</h3>
-                  <p className="text-brand-300 text-sm flex items-center gap-2">
-                    <Clock size={14} />
-                    Started 2:45 ago • Priority: Normal (3)
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-bold transition-colors">Stop Stream</button>
-                  <button className="px-4 py-2 bg-emergency hover:bg-emergency-dark rounded-lg text-sm font-bold transition-colors">Emergency Cut</button>
-                </div>
-              </div>
-              
-              <div className="mt-8 pt-6 border-t border-white/10">
-                <p className="text-xs font-bold text-brand-400 uppercase tracking-widest mb-3">Broadcasting to</p>
-                <div className="flex flex-wrap gap-2">
-                  {['Main Building', 'Floor 2', 'Cafeteria', 'Library'].map(target => (
-                    <span key={target} className="px-3 py-1 bg-white/5 rounded-full text-xs font-medium border border-white/10">{target}</span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
           <div className="space-y-4">
-            <h3 className="font-bold text-slate-800">Upcoming Scheduled</h3>
-            {[
-              { time: '09:00 AM', title: 'First Bell', type: 'Bell' },
-              { time: '11:30 AM', title: 'Lunch Break Announcement', type: 'Prerecorded' }
-            ].map((item, i) => (
-              <div key={i} className="flex items-center gap-4 p-4 bg-white border border-slate-100 rounded-xl hover:border-brand-200 transition-colors cursor-pointer group">
-                <div className="w-12 h-12 flex-shrink-0 bg-slate-50 rounded-lg flex flex-col items-center justify-center text-slate-400 group-hover:bg-brand-50 group-hover:text-brand-600">
-                  <Clock size={20} />
+            {stats?.recentAnnouncements.map((ann, i) => (
+              <div key={ann.id} className="flex items-center gap-4 p-4 bg-white border border-slate-100 rounded-xl hover:border-brand-200 transition-colors cursor-pointer group">
+                <div className={clsx(
+                  "w-12 h-12 flex-shrink-0 rounded-lg flex flex-col items-center justify-center",
+                  ann.type === 'emergency' ? "bg-emergency/10 text-emergency" : "bg-brand-50 text-brand-600"
+                )}>
+                  {ann.type === 'emergency' ? <AlertCircle size={20} /> : <MegaphoneIcon size={20} />}
                 </div>
                 <div className="flex-1">
-                  <h4 className="font-bold text-slate-900">{item.title}</h4>
-                  <p className="text-sm text-slate-500">{item.time} • {item.type}</p>
+                  <h4 className="font-bold text-slate-900">{ann.title}</h4>
+                  <p className="text-sm text-slate-500">
+                    {new Date(ann.createdAt).toLocaleTimeString()} • {ann.type.toUpperCase()} • Status: {ann.status}
+                  </p>
                 </div>
-                <ArrowRight size={20} className="text-slate-300 group-hover:text-brand-600 transition-transform group-hover:translate-x-1" />
+                <div className={clsx(
+                  "px-3 py-1 rounded-full text-[10px] font-bold uppercase",
+                  ann.status === 'completed' ? "bg-success/10 text-success" : "bg-brand-100 text-brand-700"
+                )}>
+                  {ann.status}
+                </div>
               </div>
             ))}
+            {(!stats || stats.recentAnnouncements.length === 0) && (
+              <div className="p-12 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                 <p className="text-slate-400 font-medium">No recent activity found.</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -163,7 +187,7 @@ const Dashboard = () => {
             <div className="flex items-center justify-between p-3 rounded-lg bg-success/5 border border-success/10">
               <div className="flex items-center gap-3">
                 <div className="text-success"><ShieldAlert size={20} /></div>
-                <span className="text-sm font-bold text-slate-700">RTP Relay Service</span>
+                <span className="text-sm font-bold text-slate-700">Database Connection</span>
               </div>
               <span className="text-[10px] font-black text-success uppercase">Optimal</span>
             </div>
@@ -171,17 +195,17 @@ const Dashboard = () => {
             <div className="flex items-center justify-between p-3 rounded-lg bg-success/5 border border-success/10">
               <div className="flex items-center gap-3">
                 <div className="text-success"><HardDriveIcon size={20} /></div>
-                <span className="text-sm font-bold text-slate-700">Storage (82% free)</span>
+                <span className="text-sm font-bold text-slate-700">Queue Worker</span>
               </div>
-              <span className="text-[10px] font-black text-success uppercase">Healthy</span>
+              <span className="text-[10px] font-black text-success uppercase">Active</span>
             </div>
 
-            <div className="flex items-center justify-between p-3 rounded-lg bg-warning/5 border border-warning/10">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-success/5 border border-success/10">
               <div className="flex items-center gap-3">
-                <div className="text-warning"><Activity size={20} /></div>
+                <div className="text-success"><Activity size={20} /></div>
                 <span className="text-sm font-bold text-slate-700">Network Latency</span>
               </div>
-              <span className="text-[10px] font-black text-warning uppercase">12ms</span>
+              <span className="text-[10px] font-black text-success uppercase">Healthy</span>
             </div>
           </div>
 
@@ -193,7 +217,14 @@ const Dashboard = () => {
             <p className="text-sm text-slate-600 mb-4">
               Triggering the emergency protocol will bypass all queues and broadcast to the entire school immediately.
             </p>
-            <button className="btn-emergency w-full">Quick Emergency Trigger</button>
+            <button 
+              className="btn-emergency w-full flex items-center justify-center gap-2 disabled:opacity-50"
+              onClick={handleQuickEmergency}
+              disabled={isEmergencyTriggering}
+            >
+              {isEmergencyTriggering ? <Loader2 size={18} className="animate-spin" /> : <AlertCircle size={18} />}
+              {isEmergencyTriggering ? 'Triggering...' : 'Quick Emergency Trigger'}
+            </button>
           </div>
         </div>
       </div>

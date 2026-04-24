@@ -8,9 +8,10 @@ import { createWriteStream } from 'fs';
 import { pipeline } from 'stream/promises';
 import { boss } from '../services/queue.js';
 
-const AUDIO_PATH = process.env['AUDIO_PATH'] || './audio';
+import { AudioService } from '../services/audio.js';
+
+const AUDIO_PATH = path.resolve(process.env['AUDIO_PATH'] || './audio');
 const LIBRARY_DIR = path.join(AUDIO_PATH, 'library');
-const TMP_DIR = path.join(AUDIO_PATH, 'tmp');
 
 export const getLibrary = async (_request: FastifyRequest, reply: FastifyReply): Promise<void> => {
   const result = await db.select().from(audioFiles);
@@ -24,29 +25,35 @@ export const uploadAudio = async (request: FastifyRequest, reply: FastifyReply):
     return;
   }
 
+  // Ensure library directory exists
+  await fs.mkdir(LIBRARY_DIR, { recursive: true });
+
   const filename = `${Date.now()}-${data.filename}`;
-  const tmpPath = path.join(TMP_DIR, filename);
+  const filePath = path.join(LIBRARY_DIR, filename);
 
-  // Save to tmp first
-  await pipeline(data.file, createWriteStream(tmpPath));
+  // 1. Save directly to library
+  await pipeline(data.file, createWriteStream(filePath));
 
-  // Create database record
-  const result = await db.insert(audioFiles).values({
-    name: data.filename.split('.')[0] || 'Unknown',
-    filename: filename,
-  }).returning();
+  try {
+    // 2. Get Metadata immediately
+    const meta = await AudioService.getMetadata(filePath);
 
-  const record = result[0];
-  if (!record) throw new Error('Failed to create audio record');
+    // 3. Create database record as 'ready'
+    const result = await db.insert(audioFiles).values({
+      name: data.filename.split('.')[0] || 'Unknown',
+      filename: filename,
+      durationSec: meta.durationSec,
+      sizeBytes: meta.sizeBytes,
+      status: 'ready'
+    }).returning();
 
-  // Queue transcode job
-  await boss.send('announcement.transcode', {
-    fileId: record.id,
-    inputPath: tmpPath,
-    outputName: filename.replace(path.extname(filename), '.ogg')
-  });
-
-  await reply.status(202).send(record);
+    await reply.status(201).send(result[0]);
+  } catch (err) {
+    request.log.error(err, 'Failed to process uploaded audio');
+    // Cleanup file if DB/Metadata fails
+    await fs.unlink(filePath).catch(() => {});
+    await reply.status(500).send({ error: 'Failed to process audio file. Ensure it is a valid audio format.' });
+  }
 };
 
 export const deleteAudio = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {

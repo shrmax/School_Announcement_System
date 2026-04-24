@@ -16,16 +16,36 @@ export interface TranscodeJob {
   outputName: string;
 }
 
-export async function transcodeWorker(jobs: Job<TranscodeJob>[]): Promise<void> {
+export async function transcodeWorker(payload: Job<TranscodeJob> | Job<TranscodeJob>[]): Promise<void> {
+  console.log('🚀 TRANSCODE WORKER TRIGGERED!');
+  const jobs = Array.isArray(payload) ? payload : [payload];
   for (const job of jobs) {
     const { fileId, inputPath, outputName } = job.data;
     const outputPath = path.join(LIBRARY_DIR, outputName);
 
     try {
-      logger.info(`Starting transcode for file ID ${fileId}`);
+      logger.info(`Processing file ID ${fileId}. Input: ${inputPath}`);
       
-      // 1. Transcode
-      await AudioService.transcode(inputPath, outputPath);
+      // Update status to processing
+      await db.update(audioFiles).set({ status: 'processing' }).where(eq(audioFiles.id, fileId));
+
+      // Check if input exists
+      try {
+        await fs.access(inputPath);
+      } catch (err) {
+        throw new Error(`Input file not found: ${inputPath}`);
+      }
+
+      // 1. Transcode (or just move if already ogg)
+      if (path.extname(inputPath).toLowerCase() === '.ogg') {
+        logger.info(`File is already .ogg, moving to library...`);
+        await fs.rename(inputPath, outputPath);
+      } else {
+        logger.info(`Transcoding to .ogg...`);
+        await AudioService.transcode(inputPath, outputPath);
+        // Cleanup tmp after transcode (rename handles it for .ogg)
+        await fs.unlink(inputPath).catch(() => {});
+      }
 
       // 2. Get Metadata
       const meta = await AudioService.getMetadata(outputPath);
@@ -36,16 +56,18 @@ export async function transcodeWorker(jobs: Job<TranscodeJob>[]): Promise<void> 
           filename: outputName,
           durationSec: meta.durationSec,
           sizeBytes: meta.sizeBytes,
+          status: 'ready'
         })
         .where(eq(audioFiles.id, fileId));
-
-      // 4. Cleanup tmp
-      await fs.unlink(inputPath);
       
-      logger.info(`Transcode complete for file ID ${fileId}`);
+      logger.info(`File ID ${fileId} is now READY`);
     } catch (error) {
-      logger.error(`Transcode failed for file ID ${fileId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      throw error; // Rethrow so pg-boss can retry
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      logger.error(`Processing failed for file ID ${fileId}: ${msg}`);
+      
+      // Update DB with failure
+      await db.update(audioFiles).set({ status: 'failed' }).where(eq(audioFiles.id, fileId));
+      throw error;
     }
   }
 }

@@ -26,10 +26,25 @@ export class AudioService {
       ];
 
       const ffmpeg = spawn(this.FFMPEG_PATH, args);
+      let errorMsg = '';
+
+      // Kill if it takes too long (30 seconds)
+      const timeout = setTimeout(() => {
+        ffmpeg.kill();
+        reject(new Error('ffmpeg transcode timed out after 30s'));
+      }, 30000);
+
+      ffmpeg.stderr.on('data', (data) => {
+        errorMsg += data.toString();
+      });
 
       ffmpeg.on('close', (code) => {
+        clearTimeout(timeout);
         if (code === 0) resolve();
-        else reject(new Error(`ffmpeg transcode failed with code ${code ?? 'unknown'}`));
+        else {
+          logger.error(`FFmpeg Transcode Error Output: ${errorMsg}`);
+          reject(new Error(`ffmpeg transcode failed with code ${code ?? 'unknown'}`));
+        }
       });
 
       ffmpeg.on('error', (err) => reject(err));
@@ -41,6 +56,7 @@ export class AudioService {
    */
   static async getMetadata(filePath: string): Promise<AudioMetadata> {
     return new Promise((resolve, reject) => {
+      logger.info(`Running ffprobe on ${filePath}`);
       const args = [
         '-v', 'error',
         '-show_entries', 'format=duration,size',
@@ -50,13 +66,19 @@ export class AudioService {
 
       const ffprobe = spawn(this.FFPROBE_PATH, args);
       let output = '';
+      let errorMsg = '';
 
       ffprobe.stdout.on('data', (data: Buffer) => {
         output += data.toString();
       });
 
+      ffprobe.stderr.on('data', (data: Buffer) => {
+        errorMsg += data.toString();
+      });
+
       ffprobe.on('close', (code) => {
         if (code !== 0) {
+          logger.error(`ffprobe failed for ${filePath}. Error: ${errorMsg}`);
           reject(new Error(`ffprobe failed with code ${code ?? 'unknown'}`));
           return;
         }
@@ -65,42 +87,75 @@ export class AudioService {
         const duration = parseFloat(lines[0] || '0');
         const size = parseInt(lines[1] || '0', 10);
 
+        logger.info(`ffprobe success: duration=${duration}s, size=${size} bytes`);
         resolve({
           durationSec: Math.ceil(duration),
           sizeBytes: size
         });
       });
 
-      ffprobe.on('error', (err) => reject(err));
+      ffprobe.on('error', (err) => {
+        logger.error(`ffprobe process error: ${err.message}`);
+        reject(err);
+      });
     });
   }
 
   /**
    * Streams a file to a list of IP addresses via RTP Unicast
    */
-  static streamUnicast(filePath: string, targets: string[]): number[] {
-    const pids: number[] = [];
-    
-    for (const ip of targets) {
-      const args = [
-        '-re', // Read at native frame rate
-        '-i', filePath,
-        '-c:a', 'copy', // No transcoding during stream for low latency
-        '-f', 'rtp',
-        `rtp://${ip}:5004`
-      ];
+  /**
+   * Streams a file to multiple IP addresses using a single FFmpeg process with tee muxer
+   */
+  static streamToTargets(
+    filePath: string, 
+    targets: string[], 
+    onComplete?: (code: number | null) => void
+  ): number | null {
+    if (targets.length === 0) return null;
 
-      const ffmpeg = spawn(this.FFMPEG_PATH, args);
-      if (ffmpeg.pid) {
-        pids.push(ffmpeg.pid);
-        logger.info(`Started RTP stream to ${ip} (PID: ${ffmpeg.pid})`);
-      }
+    const rtpOutputs = targets.map(addr => {
+      const finalTarget = addr.includes(':') ? addr : `${addr}:5004`;
+      return `[f=rtp]rtp://${finalTarget}?ttl=16&pkt_size=1316&payload_type=10&rtcp=0&buffer_size=65536`;
+    }).join('|');
+
+    const args = [
+      '-re',                     // Read at native frame rate
+      '-i', filePath,            // Input file
+      '-map', '0:a',             // Explicitly map audio stream
+      '-acodec', 'pcm_s16be',    // Transcode for hardware compatibility
+      '-ar', '44100',
+      '-ac', '1',
+      '-f', 'tee',               // Use tee pseudo-muxer
+      rtpOutputs                 // Multiple destinations
+    ];
+
+    const ffmpeg = spawn(this.FFMPEG_PATH, args);
+    let errorMsg = '';
+
+    if (ffmpeg.pid) {
+      logger.info(`Started multi-target RTP stream (PID: ${ffmpeg.pid}) to ${targets.length} targets. Command: ${this.FFMPEG_PATH} ${args.join(' ')}`);
+      
+      ffmpeg.stderr.on('data', (data) => {
+        errorMsg += data.toString();
+      });
+
+      ffmpeg.on('close', (code) => {
+        if (code !== 0) {
+          logger.error(`RTP stream (PID: ${ffmpeg.pid}) failed with code ${code}. Error: ${errorMsg}`);
+        } else {
+          logger.info(`RTP stream (PID: ${ffmpeg.pid}) finished successfully`);
+        }
+        if (onComplete) onComplete(code);
+      });
 
       ffmpeg.on('error', (err) => {
-        logger.error(`Stream to ${ip} failed: ${err.message}`);
+        logger.error(`RTP stream (PID: ${ffmpeg.pid}) process error: ${err.message}`);
       });
+
+      return ffmpeg.pid;
     }
 
-    return pids;
+    return null;
   }
 }
