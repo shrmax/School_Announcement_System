@@ -52,6 +52,14 @@ await server.register(fastifyStatic, {
   prefix: '/',
 });
 
+// Serve Audio Files
+const audioPath = path.resolve(process.env['AUDIO_PATH'] || './audio');
+await server.register(fastifyStatic, {
+  root: audioPath,
+  prefix: '/audio/',
+  decorateReply: false,
+});
+
 // Health Check
 server.get('/health', async (_request, _reply) => {
   return { status: 'ok', version: '1.0.0' };

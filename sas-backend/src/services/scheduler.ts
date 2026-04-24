@@ -1,6 +1,6 @@
 import { db } from '../db/index.js';
 import { schedules, scheduleTargets } from '../db/schema.js';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { AnnouncementService } from './announcements.js';
 import { AnnouncementType } from './priority.js';
 import { logger } from '../utils/logger.js';

@@ -87,7 +87,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           </div>
           
           <NavItem to="/hierarchy" icon={Network} label="Hierarchy" />
-          <NavItem to="/endpoints" icon={HardDrive} label="Endpoints" />
           <NavItem to="/jobs" icon={Activity} label="Job Monitor" />
           <NavItem to="/logs" icon={History} label="Logs" />
         </nav>
@@ -140,7 +139,6 @@ function App() {
           <Route path="/library" element={<Library />} />
           <Route path="/schedules" element={<Schedules />} />
           <Route path="/hierarchy" element={<Hierarchy />} />
-          <Route path="/endpoints" element={<Endpoints />} />
           <Route path="/jobs" element={<JobMonitor />} />
           <Route path="/logs" element={<Logs />} />
         </Routes>

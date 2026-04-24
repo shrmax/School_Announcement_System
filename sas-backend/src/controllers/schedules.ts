@@ -19,13 +19,6 @@ const scheduleSchema = z.object({
 });
 
 export const getSchedules = async (_request: FastifyRequest, reply: FastifyReply) => {
-  const allSchedules = await db.query.schedules.findMany({
-    with: {
-      // We need to add relations in schema for this to work perfectly with findMany, 
-      // but for now we'll do simple select
-    }
-  });
-
   // Since we haven't defined relations yet, let's fetch targets separately if needed 
   // or just return the basic info.
   const result = await db.select().from(schedules);

@@ -1,6 +1,6 @@
 node_modules
 .env
-dist
+lib
 audio/library/*
 audio/tmp/*
 !audio/library/.gitkeep

@@ -4,6 +4,7 @@ import {
   Search, 
   MoreVertical, 
   Play, 
+  Square,
   Trash2, 
   FileAudio, 
   Clock, 
@@ -21,10 +22,36 @@ const Library = () => {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [playingId, setPlayingId] = useState<number | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     loadFiles();
   }, []);
+
+  const handlePlay = (file: AudioFile) => {
+    if (playingId === file.id) {
+      audioRef.current?.pause();
+      setPlayingId(null);
+      return;
+    }
+
+    const baseUrl = import.meta.env.VITE_API_URL?.replace('/api/v1', '') || 'http://localhost:3000';
+    const audioUrl = `${baseUrl}/audio/${file.filename}`;
+    
+    if (!audioRef.current) {
+      audioRef.current = new Audio(audioUrl);
+    } else {
+      audioRef.current.src = audioUrl;
+    }
+
+    audioRef.current.play();
+    setPlayingId(file.id);
+
+    audioRef.current.onended = () => {
+      setPlayingId(null);
+    };
+  };
 
   // Poll for status updates only if there are transcoding files
   useEffect(() => {
@@ -224,8 +251,12 @@ const Library = () => {
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           {status === 'ready' && (
-                            <button className="p-2 hover:bg-brand-100 text-brand-600 rounded-lg transition-colors" title="Preview">
-                              <Play size={18} fill="currentColor" />
+                            <button 
+                              className="p-2 hover:bg-brand-100 text-brand-600 rounded-lg transition-colors" 
+                              title={playingId === file.id ? "Stop" : "Preview"}
+                              onClick={() => handlePlay(file)}
+                            >
+                              {playingId === file.id ? <Square size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
                             </button>
                           )}
                           <button 

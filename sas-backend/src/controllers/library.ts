@@ -6,7 +6,6 @@ import path from 'path';
 import fs from 'fs/promises';
 import { createWriteStream } from 'fs';
 import { pipeline } from 'stream/promises';
-import { boss } from '../services/queue.js';
 
 import { AudioService } from '../services/audio.js';
 

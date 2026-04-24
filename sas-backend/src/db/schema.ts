@@ -62,7 +62,7 @@ export const announcementTargets = pgTable('announcement_targets', {
 export const schedules = pgTable('schedules', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 200 }).notNull(),
-  audioFileId: integer('audio_file_id').references(() => audioFiles.id, { onDelete: 'cascade' }),
+  audioFileId: integer('audio_file_id'),
   daysOfWeek: varchar('days_of_week', { length: 50 }).default('1,2,3,4,5').notNull(), // 0=Sun, 1=Mon, etc.
   startTime: varchar('start_time', { length: 8 }).notNull(), // HH:mm:ss
   endTime: varchar('end_time', { length: 8 }),

@@ -6,10 +6,10 @@ export default async function liveRoutes(
   fastify: FastifyInstance,
   _options: FastifyPluginOptions
 ): Promise<void> {
-  fastify.get('/live', { websocket: true }, (socket, req) => {
+  fastify.get('/live', { websocket: true }, (socket, _req) => {
     logger.info('New live stream connection established');
 
-    socket.on('message', (message) => {
+    socket.on('message', (message: Buffer | string) => {
       try {
         // Handle control messages (JSON) or raw binary data
         if (typeof message === 'string' || Buffer.isBuffer(message)) {
@@ -31,8 +31,8 @@ export default async function liveRoutes(
             }
           }
         }
-      } catch (err) {
-        logger.error('Error handling socket message:', err);
+      } catch (err: unknown) {
+        logger.error('Error handling socket message: ' + (err instanceof Error ? err.message : String(err)));
       }
     });
 
@@ -41,8 +41,8 @@ export default async function liveRoutes(
       liveStreamService.stop();
     });
 
-    socket.on('error', (err) => {
-      logger.error('Socket error:', err);
+    socket.on('error', (err: Error) => {
+      logger.error('Socket error: ' + err.message);
       liveStreamService.stop();
     });
   });

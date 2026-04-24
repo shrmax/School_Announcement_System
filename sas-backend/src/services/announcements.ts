@@ -1,11 +1,11 @@
 import { db } from '../db/index.js';
 import { classrooms, floors, announcementTargets, announcements } from '../db/schema.js';
-import { eq, inArray } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { AudioService } from './audio.js';
 import { PriorityEngine, AnnouncementType } from './priority.js';
 import path from 'path';
 import { logger } from '../utils/logger.js';
-import fs from 'fs/promises';
+
 
 const AUDIO_PATH = path.resolve(process.env['AUDIO_PATH'] || './audio');
 const LIBRARY_DIR = path.join(AUDIO_PATH, 'library');
