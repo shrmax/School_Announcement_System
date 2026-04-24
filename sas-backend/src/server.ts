@@ -12,6 +12,7 @@ import hierarchyRoutes from './routes/hierarchy.js';
 import libraryRoutes from './routes/library.js';
 import announcementRoutes from './routes/announcements.js';
 import liveRoutes from './routes/live.js';
+import scheduleRoutes from './routes/schedules.js';
 import { initQueue } from './services/queue.js';
 import * as statsController from './controllers/stats.js';
 
@@ -42,6 +43,7 @@ await server.register(hierarchyRoutes, { prefix: '/api/v1' });
 await server.register(libraryRoutes, { prefix: '/api/v1' });
 await server.register(announcementRoutes, { prefix: '/api/v1' });
 await server.register(liveRoutes, { prefix: '/api/v1' });
+await server.register(scheduleRoutes, { prefix: '/api/v1/schedules' });
 
 // Serve Static Frontend (when built)
 const staticPath = path.join(__dirname, '../public');
@@ -88,6 +90,11 @@ const start = async (): Promise<void> => {
   try {
     const port = parseInt(process.env['PORT'] || '3000', 10);
     await initQueue();
+    
+    // Start Automated Scheduler
+    const { SchedulerService } = await import('./services/scheduler.js');
+    SchedulerService.start();
+
     await server.listen({ port, host: '0.0.0.0' });
     server.log.info(`Server listening on port ${port}`);
   } catch (err) {

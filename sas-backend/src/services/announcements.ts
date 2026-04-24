@@ -80,7 +80,13 @@ export class AnnouncementService {
       return;
     }
 
-    const filePath = path.join(LIBRARY_DIR, audioFilename);
+    let filePath: string;
+    if (audioFilename.startsWith('system/')) {
+      const pureFilename = audioFilename.replace('system/', '');
+      filePath = path.join(AUDIO_PATH, 'system', pureFilename);
+    } else {
+      filePath = path.join(LIBRARY_DIR, audioFilename);
+    }
     
     try {
       // 1. Update DB Status

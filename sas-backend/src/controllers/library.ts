@@ -14,8 +14,23 @@ const AUDIO_PATH = path.resolve(process.env['AUDIO_PATH'] || './audio');
 const LIBRARY_DIR = path.join(AUDIO_PATH, 'library');
 
 export const getLibrary = async (_request: FastifyRequest, reply: FastifyReply): Promise<void> => {
-  const result = await db.select().from(audioFiles);
-  await reply.send(result);
+  const dbFiles = await db.select().from(audioFiles);
+  
+  // Define system sounds
+  const systemSounds = [
+    {
+      id: -1, // Special ID for system sounds
+      name: 'System Bell',
+      description: 'Standard school bell tone',
+      filename: 'system/bell.ogg',
+      durationSec: 3,
+      sizeBytes: 11506,
+      status: 'ready',
+      createdAt: new Date().toISOString()
+    }
+  ];
+
+  await reply.send([...systemSounds, ...dbFiles]);
 };
 
 export const uploadAudio = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {

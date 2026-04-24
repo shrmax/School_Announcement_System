@@ -61,10 +61,21 @@ export const announcementTargets = pgTable('announcement_targets', {
 
 export const schedules = pgTable('schedules', {
   id: serial('id').primaryKey(),
-  announcementId: integer('announcement_id').references(() => announcements.id, { onDelete: 'cascade' }),
-  cronExpr: varchar('cron_expr', { length: 100 }),
-  runAt: timestamp('run_at'),
+  name: varchar('name', { length: 200 }).notNull(),
+  audioFileId: integer('audio_file_id').references(() => audioFiles.id, { onDelete: 'cascade' }),
+  daysOfWeek: varchar('days_of_week', { length: 50 }).default('1,2,3,4,5').notNull(), // 0=Sun, 1=Mon, etc.
+  startTime: varchar('start_time', { length: 8 }).notNull(), // HH:mm:ss
+  endTime: varchar('end_time', { length: 8 }),
+  intervalMinutes: integer('interval_minutes'), // For repeating bells
+  enabled: boolean('enabled').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const scheduleTargets = pgTable('schedule_targets', {
+  id: serial('id').primaryKey(),
+  scheduleId: integer('schedule_id').references(() => schedules.id, { onDelete: 'cascade' }),
+  targetType: targetTypeEnum('target_type').notNull(),
+  targetId: integer('target_id'),
 });
 
 export const exceptionDates = pgTable('exception_dates', {
