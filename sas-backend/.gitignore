@@ -1,0 +1,7 @@
+node_modules
+.env
+lib
+audio/library/*
+audio/tmp/*
+!audio/library/.gitkeep
+!audio/tmp/.gitkeep

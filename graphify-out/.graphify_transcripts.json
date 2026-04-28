@@ -1,0 +1,5 @@
+﻿  warning: could not transcribe C:\Users\ASUS\Documents\learning\School_Announcement_System\sas-backend\audio\library\1777017280597-audio2.ogg: Video transcription requires faster-whisper. Run: pip install 'graphifyy[video]'
+  warning: could not transcribe C:\Users\ASUS\Documents\learning\School_Announcement_System\sas-backend\audio\library\1777024005711-bell.ogg: Video transcription requires faster-whisper. Run: pip install 'graphifyy[video]'
+  warning: could not transcribe C:\Users\ASUS\Documents\learning\School_Announcement_System\sas-backend\audio\library\1777032873402-GM.ogg: Video transcription requires faster-whisper. Run: pip install 'graphifyy[video]'
+  warning: could not transcribe C:\Users\ASUS\Documents\learning\School_Announcement_System\sas-backend\audio\system\bell.ogg: Video transcription requires faster-whisper. Run: pip install 'graphifyy[video]'
+[]

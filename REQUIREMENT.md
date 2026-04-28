@@ -45,7 +45,7 @@ internal network only.
   groups of floors, buildings, entire school
 - Delivery: RTP unicast (single/selected classrooms) and
   RTP multicast (floors, buildings, school-wide)
-- Scheduling: one-off and recurring (bell system)
+- Scheduling: one-off and recurring automated broadcasts (Bells, Drills, Notices)
 - Priority-based interruption and queuing
 
 ---
@@ -79,7 +79,7 @@ internal network only.
 - FR-06: No login or authentication is required
 - FR-07: The UI provides access to all features: announcement
   creation, live broadcast, prerecorded library, school
-  hierarchy management, endpoint registration, bell schedule
+  hierarchy management, endpoint registration, automated schedule
   management, job monitor, and logs
 
 ### 4.3 Announcement Management
@@ -292,7 +292,7 @@ internal network only.
 |------|-------------|----------------|-------------|----------|
 | Live | Microphone (WebRTC) | Admin's choice | No | 3–4 |
 | Prerecorded | .ogg from library | Admin's choice | Yes | 2–4 |
-| Emergency | Mic or prerecorded | Entire school (default) | No | 5 (fixed) |
+| Emergency | Mic or prerecorded | Entire school (default) | Yes (e.g. Drills) | 5 (fixed) |
 | Bell | Prerecorded .ogg tone | Admin-configured zones | Yes (recurring) | 1 (fixed) |
 
 ---
